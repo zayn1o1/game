@@ -1,0 +1,668 @@
+#include <iostream>
+#include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
+#include <SFML/Window.hpp>
+#include <SFML/System.hpp>
+#include <fstream>
+using namespace sf;
+using namespace std;
+
+enum GameState {
+    Intro,
+    MainMenu,
+    Teams,
+    Gameplay,
+    TeamSelectionConfirmation,
+    selectOpponent,
+    Name,
+    Transition,
+    Setting
+};
+
+void drawGrid(RenderWindow& window, float xStart, float yStart, float cellSize, int rows, int cols, Color lineColor, const Texture& gridBackground) {
+
+    sf::Sprite gridBackgroundSprite(gridBackground);
+    gridBackgroundSprite.setPosition(xStart, yStart);
+    gridBackgroundSprite.setScale(
+        (cellSize * cols) / gridBackground.getSize().x,
+        (cellSize * rows) / gridBackground.getSize().y
+    );
+    window.draw(gridBackgroundSprite);
+
+
+    for (int i = 0; i <= rows; ++i) {
+        float y = yStart + i * cellSize;
+        RectangleShape line(Vector2f(cellSize * cols, 1));
+        line.setPosition(xStart, y);
+        line.setFillColor(lineColor);
+        window.draw(line);
+    }
+    for (int j = 0; j <= cols; ++j) {
+        float x = xStart + j * cellSize;
+        RectangleShape line(Vector2f(1, cellSize * rows));
+        line.setPosition(x, yStart);
+        line.setFillColor(lineColor);
+        window.draw(line);
+    }
+}
+
+int main()
+{
+    sf::RenderWindow window(VideoMode(1920, 1080), "Star Wars: BattleShips",Style::Fullscreen);
+ 
+
+    GameState gameState = Intro;
+
+    //Image
+    Texture bgtexture;  
+    bgtexture.loadFromFile("bgimg.jpg");
+    Sprite bgsprite;
+    bgsprite.setTexture(bgtexture);
+    float xdir = window.getSize().x/bgsprite.getGlobalBounds().width;
+    float ydir = window.getSize().y / bgsprite.getGlobalBounds().height;
+    bgsprite.setScale(Vector2f(xdir, ydir));
+
+    //Intro Image
+    Texture introtx;
+    introtx.loadFromFile("introimg.jpg");
+    Sprite introimg;
+    introimg.setTexture(introtx);
+    float ixdir = window.getSize().x / bgsprite.getGlobalBounds().width;
+    float iydir = window.getSize().y / bgsprite.getGlobalBounds().height;
+    introimg.setScale(Vector2f(ixdir, iydir));
+
+    Color spriteColor = introimg.getColor();
+    spriteColor.a = 255; 
+    introimg.setColor(spriteColor);
+    
+    Clock clock;
+    float fadeDuration = 6.0f; 
+    float alpha = 255;
+
+    //Music
+    Music bgmusic;
+    bgmusic.openFromFile("bgmusic.mp3");
+    bgmusic.play();
+
+    //Sound Button
+    Texture soundtx;
+    soundtx.loadFromFile("sound.png");
+    Sprite soundB;
+    soundB.setTexture(soundtx);
+    soundB.setPosition(20,20);
+    bool soundOn = true;
+  
+    
+    
+    //Title Font
+    Font bgfont;
+    bgfont.loadFromFile("starjedi.ttf");
+    Text title;
+    title.setFont(bgfont);
+    title.setString("Star Wars");
+    title.setCharacterSize(150);
+    title.setFillColor(Color::Yellow);
+    title.setOutlineThickness(8);
+    title.setOutlineColor(Color::Black);
+    title.setPosition((1920 / 2) - 450 , (1080 / 2) - 500);
+    Font font;
+    font.loadFromFile("txt.otf");
+    Text txt;
+    txt.setFont(font);
+    txt.setString("BattleShips");
+    txt.setCharacterSize(50);
+    txt.setFillColor(Color::White);
+    txt.setOutlineThickness(4);
+    txt.setOutlineColor(Color::Black);
+    txt.setPosition((1920 / 2) - 250, (1080 / 2) - 320);
+
+    Text playButton;
+    playButton.setFont(bgfont);
+    playButton.setString("Play");
+
+
+    Text leaderboardButton;  
+    leaderboardButton.setFont(bgfont);
+    leaderboardButton.setString("Leaderboard");
+ 
+
+    Text exitButton;  
+    exitButton.setFont(bgfont);
+    exitButton.setString("Exit");
+ 
+
+    Texture teams;
+    teams.loadFromFile("teams.png"); 
+    teams.setSmooth(true); 
+    Sprite bgT; 
+    bgT.setTexture(teams); 
+    float xdirT = window.getSize().x / bgT.getGlobalBounds().width; 
+    float ydirT = window.getSize().y / bgT.getGlobalBounds().height; 
+    bgT.setScale(Vector2f(xdirT, ydirT)); 
+
+    Text backButton;  
+    backButton.setFont(bgfont);
+    backButton.setString("Back");  
+    backButton.setFillColor(Color::White);
+    backButton.setOutlineColor(Color::Black);
+
+
+    Text team1Button; 
+    team1Button.setFont(bgfont);
+    team1Button.setString("Dark Side");  
+    team1Button.setFillColor(Color::Black);
+    team1Button.setOutlineColor(Color::Red);
+
+    Text team2Button;  
+    team2Button.setFont(bgfont);
+    team2Button.setString("Light Side");  
+    team2Button.setFillColor(Color::Blue);
+    team2Button.setOutlineColor(Color::White);
+
+
+    Text confirmationText;
+    confirmationText.setFont(bgfont);
+    confirmationText.setCharacterSize(50); 
+    confirmationText.setFillColor(Color::White); 
+    confirmationText.setPosition((1920 / 2) - 450, (1080 / 2) - 200); 
+    
+    
+    Text teamtt;
+    teamtt.setFont(bgfont);
+    teamtt.setString("Choose Your Side");
+    teamtt.setCharacterSize(90);
+    teamtt.setFillColor(Color::Black);
+    teamtt.setOutlineThickness(6);
+    teamtt.setOutlineColor(Color::White);
+    teamtt.setPosition((1920 / 2) - 480, (1080 / 2) - 500 );
+
+    Texture darktx;
+    darktx.loadFromFile("dark.jpg");
+    Texture lighttx;
+    lighttx.loadFromFile("light.jpg");
+    Sprite teamconfirm;
+
+    string userName = "";
+    Text nameInputPrompt, nameInputText;
+
+    sf::RectangleShape rectangle; 
+    rectangle.setSize(sf::Vector2f(700.0f, 100.0f)); 
+    rectangle.setFillColor(sf::Color::White);  
+    rectangle.setPosition((1350 / 2) - 350, (700 / 2)); 
+    rectangle.setOutlineThickness(2.0f); 
+    rectangle.setOutlineColor(sf::Color::Red);  
+
+    nameInputPrompt.setFont(bgfont); 
+    nameInputPrompt.setString("Enter Your Name:"); 
+    nameInputPrompt.setCharacterSize(50); 
+    nameInputPrompt.setFillColor(Color::White); 
+    nameInputPrompt.setPosition( 
+        (window.getSize().x - nameInputPrompt.getGlobalBounds().width) / 2,  
+        (window.getSize().y / 2) - 100 
+    ); 
+
+    nameInputText.setFont(font); 
+    nameInputText.setCharacterSize(40); 
+    nameInputText.setFillColor(Color::White);
+    nameInputText.setPosition( 
+        (window.getSize().x - 400) / 2, 
+        (window.getSize().y / 2)  
+    );
+    bool keyPressed = false;
+
+    Texture transtexture;
+    transtexture.loadFromFile("trans.jpg");
+    Sprite transsprite;
+    transsprite.setTexture(transtexture);
+    float xdirTR = window.getSize().x / transsprite.getGlobalBounds().width;
+    float ydirTR = window.getSize().y / transsprite.getGlobalBounds().height;
+    transsprite.setScale(Vector2f(xdirTR, ydirTR));
+
+    Texture rebelsGridTexture, empireGridTexture;
+    if (!rebelsGridTexture.loadFromFile("bg69.jpg") || !empireGridTexture.loadFromFile("starwas68.jpg")) {
+        cout << "Error loading grid textures." << endl;
+        return -1;
+    }
+
+    Texture wall;
+    wall.loadFromFile("wall3.jpg");
+    wall.setSmooth(true);
+    Sprite wallS;
+    wallS.setTexture(wall);
+    float xdirW = window.getSize().x / wallS.getGlobalBounds().width;
+    float ydirW = window.getSize().y / wallS.getGlobalBounds().height;
+    wallS.setScale(Vector2f(xdirW, ydirW));
+
+    Text set;
+    set.setFont(bgfont);
+    set.setString("Set up your ships soldier");
+    set.setCharacterSize(50);
+    set.setFillColor(Color::White);
+    set.setOutlineColor(Color::Black);
+    set.setOutlineThickness(4);
+    set.setPosition(300, 50);
+    
+    const int originalSize = 40;
+    const int enlargedSize = 50;
+
+    Clock shrinkClock;
+    Clock transitionClock;
+    bool transitionActive = false;
+    float fadeOpacity = 0.0f;
+    bool isShrinking = true;
+    int selectedTeam;
+    const float shrinkSpeed = 60.0f;
+    const float transitionDelay = 2.0f;
+    int initialFontSize = 100;
+    int targetFontSize = 60;
+    float gridXStart = 430;
+    float gridYStart = 150;
+    float cellSize = 50.0f;
+    int rows = 10, cols = 10;
+    int highlightedRow = -1;
+    int highlightedCol = -1;
+    int SEchecker = 0;
+    int currentShip = 1;
+    int Pship1posR[2], Pship1posC[2];
+    int Pship2posR[2], Pship2posC[2];
+    int Pship3posR[2], Pship3posC[2];
+    int Pship4posR[2], Pship4posC[2];
+    int Pship5posR[2], Pship5posC[2];
+    bool allShipsPlaced = false;
+    Vector2i shipStart, shipEnd;
+    int gridStatus[10][10] = { 0 };
+    float fadeInTime = 3.0f;
+    float fadeOutTime = 3.0f;
+    float fadeInDelay = 1.0f;
+    bool allShipsPlacedWaitStarted = false;
+    bool fadeTransitionActive = false;
+    const float waitTime = 0.0f;
+    bool startTransition = false;
+
+
+    const int rows1 = 10;
+    const int cols1 = 10;
+
+
+
+    while (window.isOpen())
+    {
+        sf::Event event;
+        while (window.pollEvent(event))
+        {
+            if (event.type == Event::Closed)
+                window.close();
+        }
+        if (gameState == Intro) {
+            float elapsedTime = clock.getElapsedTime().asSeconds();
+            if (elapsedTime < fadeDuration) {
+                alpha = 255 - (elapsedTime / fadeDuration) * 255;
+                if (alpha < 0)
+                    alpha = 0;
+                spriteColor.a = static_cast<sf::Uint8>(alpha);
+                introimg.setColor(spriteColor);
+            }
+            if (elapsedTime > 6) {
+                gameState = MainMenu;
+                clock.restart();
+            }
+        }
+
+
+        if (event.type == Event::MouseButtonPressed) {
+            sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+            if (soundB.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePos))) {
+                if (soundOn) {
+                    bgmusic.pause();
+                    soundOn = false;
+                }
+                else if (soundOn == false) {
+                    bgmusic.play();
+                    soundOn = true;
+                }
+            }
+        }
+        
+        
+        sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+      
+        if (event.type == sf::Event::MouseButtonPressed && gameState == MainMenu) {
+       
+            if (playButton.getGlobalBounds().contains(static_cast<Vector2f>(mousePos))) {
+
+                gameState = Teams;
+            }
+            if (exitButton.getGlobalBounds().contains(static_cast<Vector2f>(mousePos))) {
+      
+                window.close();
+            }
+        }
+               
+        
+       
+        if (playButton.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePos))) {
+            playButton.setCharacterSize(75);
+            playButton.setFillColor(Color(171,24,31));  
+            playButton.setOutlineColor(Color::Black);  
+            playButton.setOutlineThickness(4);
+            playButton.setPosition((1920 / 2) - 110, (1080 / 2));
+        }
+        else {
+            playButton.setCharacterSize(50);
+            playButton.setFillColor(Color::Black);
+            playButton.setOutlineColor(Color(171, 24, 31));
+            playButton.setOutlineThickness(2);
+            playButton.setPosition((1920 / 2) - 80, (1080 / 2));
+        }
+        if (leaderboardButton.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePos))) {
+            leaderboardButton.setCharacterSize(70);
+            leaderboardButton.setFillColor(Color(0,139,139));
+            leaderboardButton.setOutlineColor(Color::Black);
+            leaderboardButton.setOutlineThickness(4);
+            leaderboardButton.setPosition((1920 / 2) - 285, (1080 / 2) + 130);
+        }
+        else {
+            leaderboardButton.setCharacterSize(50);
+            leaderboardButton.setFillColor(Color::Black);
+            leaderboardButton.setOutlineColor(Color(0, 139, 139));
+            leaderboardButton.setOutlineThickness(2);
+            leaderboardButton.setPosition((1920 / 2) - 205, (1080 / 2) + 130);
+        }
+        if (exitButton.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePos))) {
+            exitButton.setCharacterSize(70);
+            exitButton.setFillColor(Color(34,140,34));
+            exitButton.setOutlineColor(Color::Black);
+            exitButton.setOutlineThickness(4);
+            exitButton.setPosition((1920 / 2) - 85, (1080 / 2) + 260);
+        }
+        else {
+            exitButton.setCharacterSize(50);
+            exitButton.setFillColor(Color::Black);
+            exitButton.setOutlineColor(Color(34, 140, 34));
+            exitButton.setOutlineThickness(2);
+            exitButton.setPosition((1920 / 2) - 65, (1080 / 2) + 260);
+        }
+        
+        
+        if (gameState == Teams) {
+            if (team1Button.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePos))) {
+                team1Button.setCharacterSize(100);
+                team1Button.setOutlineThickness(6);
+                team1Button.setPosition((1920 / 2) - 600, (1080 / 2) -150 );
+
+            }
+            else {
+                team1Button.setCharacterSize(80);
+                team1Button.setOutlineThickness(3);
+                team1Button.setPosition((1920 / 2) - 600, (1080 / 2) -150);
+
+            }
+
+            if (team2Button.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePos))) {
+                team2Button.setCharacterSize(100);
+                team2Button.setOutlineThickness(6);
+                team2Button.setPosition((1920 / 2) + 240 , (1080 / 2) );
+            }
+            else {
+                team2Button.setCharacterSize(80);
+                team2Button.setOutlineThickness(3);
+                team2Button.setPosition((1920 / 2) + 275, (1080 / 2)  );
+            }
+
+            if (backButton.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePos))) {
+                backButton.setCharacterSize(70);
+                backButton.setOutlineThickness(6);
+                backButton.setPosition((1920 / 2) - 75, (1080 / 2) + 450);
+            }
+            else {
+                backButton.setCharacterSize(50);
+                backButton.setOutlineThickness(4);
+                backButton.setPosition((1920 / 2) - 65, (1080 / 2) + 450);
+            }
+        }
+       
+
+        
+        if (event.type == Event::MouseButtonPressed && gameState == Teams) {
+            Vector2i mousePos = Mouse::getPosition(window);
+            if (team1Button.getGlobalBounds().contains(static_cast<Vector2f>(mousePos))) {
+                selectedTeam = 1;
+                gameState = TeamSelectionConfirmation;
+                confirmationText.setString("You have chosen The Dark Side");
+              
+                teamconfirm.setTexture(darktx);
+                float dxdir = window.getSize().x / teamconfirm.getGlobalBounds().width;
+                float dydir = window.getSize().y / teamconfirm.getGlobalBounds().height;
+                teamconfirm.setScale(Vector2f(dxdir, dydir));
+            }
+            else if (team2Button.getGlobalBounds().contains(static_cast<Vector2f>(mousePos))) {
+                selectedTeam = 2;
+                gameState = TeamSelectionConfirmation;
+                confirmationText.setString("You have chosen The Light Side");
+        
+                teamconfirm.setTexture(lighttx);
+                float dxdir = window.getSize().x / teamconfirm.getGlobalBounds().width;
+                float dydir = window.getSize().y / teamconfirm.getGlobalBounds().height;
+                teamconfirm.setScale(Vector2f(dxdir, dydir));
+
+            }
+            else if (backButton.getGlobalBounds().contains(static_cast<Vector2f>(mousePos))) {
+                gameState = MainMenu;
+            }
+
+        }
+ 
+        if (gameState == TeamSelectionConfirmation) {
+            float elapsedTime = clock.getElapsedTime().asSeconds();
+            if (elapsedTime >= 3) {
+                gameState = Name;
+            }
+        }
+     
+
+        if (event.type == sf::Event::TextEntered && !keyPressed && gameState == Name) { 
+            keyPressed = true; 
+            if (event.text.unicode < 128) { 
+                char enteredChar = static_cast<char>(event.text.unicode); 
+                if (enteredChar == '\b') { 
+                    if (!userName.empty()) { 
+                        userName.pop_back(); 
+                    }
+                }
+                else if (enteredChar == '\r' || enteredChar == '\n') { 
+                    ofstream outFile("username.txt");  
+                    if (outFile.is_open()) { 
+                        outFile << userName << endl; 
+                        outFile.close(); 
+                    }
+                    gameState = Setting; 
+                }
+                else {
+                    userName += enteredChar;
+                }
+            }
+        }
+        if (event.type == sf::Event::KeyReleased) {
+            keyPressed = false;
+        }
+        if (gameState == Name)
+        {
+            nameInputText.setString(userName);
+        }
+       if (gameState == Intro) {
+            window.draw(bgsprite);
+            window.draw(introimg);
+        }
+        
+        if (gameState == MainMenu) {
+            window.draw(bgsprite);
+            window.draw(title);
+            window.draw(playButton);
+            window.draw(leaderboardButton);
+            window.draw(exitButton);
+            window.draw(txt);
+        }
+        if (gameState == Teams) {
+            window.draw(bgT);
+            window.draw(team1Button);
+            window.draw(teamtt);
+            window.draw(team2Button);
+            window.draw(backButton);
+        }
+        if (gameState == TeamSelectionConfirmation)
+        {
+          
+            window.draw(teamconfirm);
+            window.draw(confirmationText);
+        }
+       
+        if (gameState == Name) {
+            window.draw(nameInputPrompt);
+            window.draw(nameInputText);
+        }
+        if (gameState == Setting)
+        {
+
+
+            window.draw(wallS);
+            float gridCellSize = 50.0f;
+            int rows = 10, cols = 10;
+
+            const Texture* playerGridTexture = selectedTeam == 2 ? &rebelsGridTexture : &empireGridTexture;
+            drawGrid(window, 430, 150, gridCellSize, rows, cols, Color::White, *playerGridTexture);
+
+            
+            window.draw(set);
+
+            if (highlightedRow >= 0 && highlightedCol >= 0) {
+                sf::RectangleShape highlight(sf::Vector2f(cellSize, cellSize));
+                highlight.setPosition(gridXStart + highlightedCol * cellSize, gridYStart + highlightedRow * cellSize);
+                highlight.setFillColor(sf::Color(255, 255, 0, 100));
+                window.draw(highlight);
+            }
+            if (allShipsPlaced) {
+
+                for (int i = 1; i <= 5; ++i) {
+                    int startRow = 0, startCol = 0, endRow = 0, endCol = 0;
+
+                    switch (i) {
+                    case 1:
+                        startRow = Pship1posR[0];
+                        startCol = Pship1posC[0];
+                        endRow = Pship1posR[1];
+                        endCol = Pship1posC[1];
+                        break;
+                    case 2:
+                        startRow = Pship2posR[0];
+                        startCol = Pship2posC[0];
+                        endRow = Pship2posR[1];
+                        endCol = Pship2posC[1];
+                        break;
+                    case 3:
+                        startRow = Pship3posR[0];
+                        startCol = Pship3posC[0];
+                        endRow = Pship3posR[1];
+                        endCol = Pship3posC[1];
+                        break;
+                    case 4:
+                        startRow = Pship4posR[0];
+                        startCol = Pship4posC[0];
+                        endRow = Pship4posR[1];
+                        endCol = Pship4posC[1];
+                        break;
+                    case 5:
+                        startRow = Pship5posR[0];
+                        startCol = Pship5posC[0];
+                        endRow = Pship5posR[1];
+                        endCol = Pship5posC[1];
+                        break;
+                    }
+
+                    if (startRow == endRow) {
+                        // Horizontal ship
+                        for (int col = startCol; col <= endCol; ++col) {
+                            sf::RectangleShape cellHighlight(sf::Vector2f(cellSize, cellSize));
+                            cellHighlight.setPosition(gridXStart + col * cellSize, gridYStart + startRow * cellSize);
+                            cellHighlight.setFillColor(sf::Color(0, 255, 0, 100)); // Green with transparency
+                            window.draw(cellHighlight);
+                        }
+                    }
+                    else if (startCol == endCol) {
+                        // Vertical ship
+                        for (int row = startRow; row <= endRow; ++row) {
+                            RectangleShape cellHighlight(Vector2f(cellSize, cellSize));
+                            cellHighlight.setPosition(gridXStart + startCol * cellSize, gridYStart + row * cellSize);
+                            cellHighlight.setFillColor(sf::Color(0, 255, 0, 100)); // Green with transparency
+                            window.draw(cellHighlight);
+
+                        }
+                    }
+                }
+            }
+        }
+        if (gameState == Transition) {
+            // Calculate total elapsed time
+            float elapsedTime = transitionClock.getElapsedTime().asSeconds();
+
+            if (elapsedTime <= fadeInDelay) {
+                // Delay before fade-in starts
+                fadeOpacity = 0.0f; // Keep the screen fully transparent
+            }
+            else if (elapsedTime <= fadeInDelay + fadeInTime) {
+                // Fade-in effect starts after the delay
+                float fadeInElapsed = elapsedTime - fadeInDelay;
+                fadeOpacity = (fadeInElapsed / fadeInTime) * 255.0f;
+            }
+            else if (elapsedTime <= fadeInDelay + fadeInTime + fadeOutTime) {
+                // Fade-out effect starts after fade-in
+                float fadeOutElapsed = elapsedTime - fadeInDelay - fadeInTime;
+                fadeOpacity = ((fadeOutTime - fadeOutElapsed) / fadeOutTime) * 255.0f;
+            }
+            else {
+                // End of transition
+                gameState = Gameplay;
+                transitionActive = false;
+                fadeOpacity = 0.0f; // Reset opacity
+            }
+
+            // Draw the background sprite
+            transsprite.setColor(sf::Color(255, 255, 255, static_cast<sf::Uint8>(fadeOpacity))); // Adjust opacity of the background
+            window.draw(transsprite);
+
+            // Draw the "LET THE BATTLE BEGIN" text during the transition
+            if (elapsedTime >= fadeInDelay && elapsedTime <= fadeInDelay + fadeInTime + fadeOutTime) {
+                sf::Text battleText;
+                battleText.setFont(bgfont); // Replace with your actual font
+                battleText.setString("LET THE BATTLE BEGIN");
+                battleText.setCharacterSize(50); // Adjust size as needed
+                battleText.setFillColor(sf::Color(255, 255, 255, static_cast<sf::Uint8>(fadeOpacity)));
+                battleText.setPosition(window.getSize().x / 2.0f - battleText.getGlobalBounds().width / 2.0f,
+                    window.getSize().y / 2.0f - battleText.getGlobalBounds().height / 2.0f);
+                window.draw(battleText);
+            }
+        }
+
+
+
+        else if (gameState == Gameplay) {
+
+            window.draw(wallS);
+            float gridCellSize = 40.0f;
+
+
+            const Texture* playerGridTexture = selectedTeam == 2 ? &rebelsGridTexture : &empireGridTexture;
+            const Texture* enemyGridTexture = selectedTeam == 2 ? &empireGridTexture : &rebelsGridTexture;
+
+            drawGrid(window, 150, 150, gridCellSize, rows, cols, Color::White, *playerGridTexture);
+            drawGrid(window, 800, 150, gridCellSize, rows, cols, Color::White, *enemyGridTexture);
+
+
+        }
+
+        window.clear();
+        window.draw(soundB);
+        window.display();
+    }
+
+    return 0;
+}
